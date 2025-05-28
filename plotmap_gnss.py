@@ -132,9 +132,15 @@ def update(frame):
 
         ax.relim()
         ax.autoscale_view()
-
-    axs[4].set_xticks(range(len(time_data)))
-    axs[4].set_xticklabels(time_data, rotation=45, ha='right')
+    # Limit number of x-axis ticks for readability
+    num_ticks = 10
+    if len(time_data) > num_ticks:
+        tick_indices = np.linspace(0, len(time_data) - 1, num_ticks, dtype=int)
+        axs[4].set_xticks(tick_indices)
+        axs[4].set_xticklabels([time_data[i] for i in tick_indices], rotation=45, ha='right')
+    else:
+        axs[4].set_xticks(range(len(time_data)))
+        axs[4].set_xticklabels(time_data, rotation=45, ha='right')
 
     # Update satellite map
     # Add new point to the GeoDataFrame
