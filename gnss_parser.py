@@ -191,11 +191,20 @@ class GNSSParser:
 
     # === NMEA parsing methods ===
     def _parse_gpgga(self, line: str):
+        '''Parse GPGGA sentence and store data in gga_data attribute.
+        (('Timestamp', 'timestamp', <function timestamp at 0x000002D6D9D38E00>), ('Latitude', 'lat'), 
+        ('Latitude Direction', 'lat_dir'), ('Longitude', 'lon'), ('Longitude Direction', 'lon_dir'), 
+        ('GPS Quality Indicator', 'gps_qual', <class 'int'>), ('Number of Satellites in use', 'num_sats'), 
+        ('Horizontal Dilution of Precision', 'horizontal_dil'), ('Antenna Alt above sea level (mean)', 'altitude', <class 'float'>), 
+        ('Units of altitude (meters)', 'altitude_units'), ('Geoidal Separation', 'geo_sep'), ('Units of Geoidal Separation (meters)', 'geo_sep_units'), 
+        ('Age of Differential GPS Data (secs)', 'age_gps_data'), ('Differential Reference Station ID', 'ref_station_id'))'''
         try:
             msg = pynmea2.parse(line)
             if msg.gps_qual < 1:
                 print("No valid GPS fix.")
             self.gga_data = msg
+            #print(msg.fields)
+            #print(msg.data)
         except pynmea2.nmea.ParseError:
             print(f"GGA parse error: {line}")
 
@@ -205,13 +214,22 @@ class GNSSParser:
             heading = float(fields[1]) if fields[1] else 0.0
             status = fields[2] if len(fields) > 2 else ''
             self.ths_data = {'heading': heading, 'status': status}
+            #print(self.ths_data)
         except Exception:
             print(f"THS parse error: {line}")
 
     def _parse_gpvtg(self, line: str):
+        '''Parse GPVTG sentence and store data in vtg_data attribute.
+        (('True Track made good', 'true_track', <class 'float'>), ('True Track made good symbol', 'true_track_sym'), 
+        ('Magnetic Track made good', 'mag_track', <class 'decimal.Decimal'>), ('Magnetic Track symbol', 'mag_track_sym'), 
+        ('Speed over ground knots', 'spd_over_grnd_kts', <class 'decimal.Decimal'>), ('Speed over ground symbol', 'spd_over_grnd_kts_sym'), 
+        ('Speed over ground kmph', 'spd_over_grnd_kmph', <class 'float'>), ('Speed over ground kmph symbol', 'spd_over_grnd_kmph_sym'), ('FAA mode indicator', 'faa_mode'))
+        '''
         try:
             msg = pynmea2.parse(line)
             self.vtg_data = msg
+            #print(msg.fields)
+            #print(msg.data)
         except pynmea2.nmea.ParseError:
             print(f"VTG parse error: {line}")
 
@@ -251,6 +269,7 @@ class GNSSParser:
                 'latitude': self.gga_data.latitude,
                 'longitude': self.gga_data.longitude,
                 'altitude': self.gga_data.altitude,
+                'gnss_quality': self.gga_data.gps_qual,
             }
         return None
 
@@ -263,7 +282,7 @@ class GNSSParser:
         if self.vtg_data:
             return {
                 'course': self.vtg_data.true_track,
-                'speed': self.vtg_data.speed_knots,
+                'speed_kmh': self.vtg_data.spd_over_grnd_kmph,
             }
         return None
 
