@@ -1,10 +1,23 @@
-import gnss_parser as parser
+from gnss_parser import GNSSParser
+from datetime import datetime
+
+# This script initializes a GNSS parser and logs GNSS data to a CSV file.
+parser = GNSSParser(
+    serial_port='COM5',
+    baud_rate=115200,
+    ntrip_caster='192.148.213.42',
+    ntrip_port=2101,
+    mountpoint='VRS3M',
+    username='vicentedf88',
+    password='Danvila1999'
+)
+
 from datetime import datetime
 
 def main():
     try:
         # Initialize the GNSS parser
-        parser.launch_gnss_parser()
+        parser.start()
         print("GNSS parser launched successfully.")
     except Exception as e:
         print(f"Error launching GNSS parser: {e}")
@@ -35,7 +48,8 @@ def main():
         except Exception as e:
             print(f"Error reading GNSS data: {e}")
         finally:
-            parser.close_gnss_parser()
+            # On shutdown
+            parser.stop()
             print("GNSS parser closed.")
 
 if __name__ == "__main__":
