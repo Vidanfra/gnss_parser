@@ -9,6 +9,7 @@ from shapely.geometry import Point
 from gnss_parser import GNSSParser
 import pandas as pd
 import os
+import threading
 
 # === GNSS Parser Initialization ===
 parser = GNSSParser(
@@ -67,9 +68,16 @@ filename = f"gnss_data_{init_time}.csv"
 
 # === Function to Log Data with Header ===
 def log_data(filename, pos, heading, course):
+
+    pos = parser.get_position()
+    heading = parser.get_heading()
+    course = parser.get_course_speed()
+
+    if pos is None or heading is None or course is None:
+        return
     # Prepare header and data line
     header = "timestamp,latitude,longitude,altitude,gnss_quality,heading,cog,sog_kmh"
-    data_line = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')},{pos['latitude']},{pos['longitude']},{pos['altitude']},{pos['gnss_quality']},{heading},{course['course']},{course['speed_kmh']}"
+    data_line = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')},{pos['latitude']},{pos['longitude']},{pos['altitude']},{pos['gnss_quality']},{heading},{course['course']},{course['speed_kmh']}"
 
     # Write header if file is new or empty
     write_header = not os.path.exists(filename) or os.path.getsize(filename) == 0
@@ -79,7 +87,7 @@ def log_data(filename, pos, heading, course):
         file.write(data_line + '\n')
 
     # Optional: print to console
-    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]  Latitude={pos['latitude']}, Longitude={pos['longitude']}, Altitude={pos['altitude']}, Fix={pos['gnss_quality']} Heading={heading}, COG={course['course']}, SOG={course['speed_kmh']}")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}]  Latitude={pos['latitude']}, Longitude={pos['longitude']}, Altitude={pos['altitude']}, Fix={pos['gnss_quality']} Heading={heading}, COG={course['course']}, SOG={course['speed_kmh']}")
 
 
 # === Animation Update Function ===
@@ -92,7 +100,7 @@ def update(frame):
     if pos is None or heading is None or course is None:
         return
     # Log data to file
-    log_data(filename, pos, heading, course)
+    #log_data(filename, pos, heading, course)
 
     # Timestamped data
     now = datetime.now().strftime('%H:%M:%S')

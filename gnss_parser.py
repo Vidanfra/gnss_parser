@@ -123,9 +123,9 @@ class GNSSParser:
 
     def _send_stream_commands(self):
         commands = [
-            ("GPGGA", 1),
-            ("GPTHS", 1),
-            ("GPVTG", 1),
+            ("GPGGA", 0.1),
+            ("GPTHS", 0.1),
+            ("GPVTG", 0.1),
             #("GPZDA", 1),
             #("GPRMCH", 1),
         ]
