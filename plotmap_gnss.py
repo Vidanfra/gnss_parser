@@ -19,7 +19,8 @@ parser = GNSSParser(
     ntrip_port=2101,
     mountpoint='VRS3M',
     username='vicentedf88',
-    password='Danvila1999'
+    password='Danvila1999',
+    command_freq=0.1  # Command frequency in seconds
 )
 
 # === Constants ===
@@ -66,28 +67,33 @@ scatter = None
 init_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 filename = f"gnss_data_{init_time}.csv"
 
-# === Function to Log Data with Header ===
-def log_data(filename, pos, heading, course):
+# === Function to Log Data in a Loop (runs in main thread) ===
+def log_data_loop(filename, interval=0.05): # Log 20 Hz
+    while True:
+        pos = parser.get_position()
+        heading = parser.get_heading()
+        course = parser.get_course_speed()
 
-    pos = parser.get_position()
-    heading = parser.get_heading()
-    course = parser.get_course_speed()
+        if pos is None or heading is None or course is None:
+            time.sleep(interval)
+            continue
 
-    if pos is None or heading is None or course is None:
-        return
-    # Prepare header and data line
-    header = "timestamp,latitude,longitude,altitude,gnss_quality,heading,cog,sog_kmh"
-    data_line = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')},{pos['latitude']},{pos['longitude']},{pos['altitude']},{pos['gnss_quality']},{heading},{course['course']},{course['speed_kmh']}"
+        # Prepare header and data line
+        header = "timestamp,latitude,longitude,altitude,gnss_quality,heading,cog,sog_kmh"
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+        data_line = f"{timestamp},{pos['latitude']},{pos['longitude']},{pos['altitude']},{pos['gnss_quality']},{heading},{course['course']},{course['speed_kmh']}"
 
-    # Write header if file is new or empty
-    write_header = not os.path.exists(filename) or os.path.getsize(filename) == 0
-    with open(filename, 'a') as file:
-        if write_header:
-            file.write(header + '\n')
-        file.write(data_line + '\n')
+        # Write header if file is new or empty
+        write_header = not os.path.exists(filename) or os.path.getsize(filename) == 0
+        with open(filename, 'a') as file:
+            if write_header:
+                file.write(header + '\n')
+            file.write(data_line + '\n')
 
-    # Optional: print to console
-    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}]  Latitude={pos['latitude']}, Longitude={pos['longitude']}, Altitude={pos['altitude']}, Fix={pos['gnss_quality']} Heading={heading}, COG={course['course']}, SOG={course['speed_kmh']}")
+        # Optional: print to console
+        print(f"[{timestamp}]  Latitude={pos['latitude']}, Longitude={pos['longitude']}, Altitude={pos['altitude']}, Fix={pos['gnss_quality']} Heading={heading}, COG={course['course']}, SOG={course['speed_kmh']}")
+
+        time.sleep(interval)  # Log every second (adjust as needed)
 
 
 # === Animation Update Function ===
@@ -178,20 +184,25 @@ def update(frame):
     ax_map.set_axis_off()
 
 
-# === Main Function ===
-def main():
+# === Main Function (runs in background thread) ===
+def run_animation():
     try:
         parser.start()
         print("GNSS parser launched successfully.")
-        # Start animations
         ani_ts = animation.FuncAnimation(fig_ts, update, interval=500)
         ani_map = animation.FuncAnimation(fig_map, update, interval=500)
         plt.show()
     except KeyboardInterrupt:
-        print("Interrupted.")
+        print("Animation interrupted.")
     finally:
         parser.stop()
         print("GNSS parser stopped.")
 
+# === Launch Threads ===
 if __name__ == '__main__':
-    main()
+    # Start logging in a background thread
+    logging_thread = threading.Thread(target=log_data_loop, args=(filename,), daemon=True)
+    logging_thread.start()
+
+    # Run animation in main thread (required by matplotlib/tkinter)
+    run_animation()

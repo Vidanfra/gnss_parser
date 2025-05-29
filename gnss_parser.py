@@ -21,7 +21,9 @@ class GNSSParser:
         mountpoint: str,
         username: str,
         password: str,
+        command_freq: float,
         timeout: float = 1.0,
+        
     ):
         # Serial and NTRIP settings
         self.serial_port_name = serial_port
@@ -32,6 +34,7 @@ class GNSSParser:
         self.mountpoint = mountpoint
         self.username = username
         self.password = password
+        self.command_freq = command_freq
 
         # Runtime handles
         self.serial_port = None
@@ -123,11 +126,11 @@ class GNSSParser:
 
     def _send_stream_commands(self):
         commands = [
-            ("GPGGA", 0.1),
-            ("GPTHS", 0.1),
-            ("GPVTG", 0.1),
-            #("GPZDA", 1),
-            #("GPRMCH", 1),
+            ("GPGGA", self.command_freq),
+            ("GPTHS", self.command_freq),
+            ("GPVTG", self.command_freq),
+            #("GPZDA", self.command_freq),
+            #("GPRMCH", self.command_freq),
         ]
         for cmd, freq in commands:
             self._stream_nmea(cmd, freq)
@@ -306,7 +309,8 @@ if __name__ == '__main__':
         ntrip_port=2101,
         mountpoint='VRS3M',
         username='vicentedf88',
-        password='Danvila1999'
+        password='Danvila1999',
+        commands_freq=1,
     )
     parser.start()
     try:
