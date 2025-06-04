@@ -20,7 +20,7 @@ parser = GNSSParser(
     mountpoint='VRS3M',
     username='vicentedf88',
     password='Danvila1999',
-    command_freq=0.1  # Command frequency in seconds
+    command_freq=0.1  # Command interval in seconds
 )
 
 # === Constants ===
