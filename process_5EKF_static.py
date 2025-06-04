@@ -22,6 +22,7 @@ if not file_path:
     print("No file selected.")
     exit()
 filename = file_path.split("/")[-1].split(".")[0]
+print(f"Selected file: {filename}")
 
 # Read and parse the CSV
 df = pd.read_csv(file_path, parse_dates=["timestamp"])
@@ -36,24 +37,8 @@ rolling_window = 30  # Rolling window for standard deviation
 
 # --- (A) Build the original GeoDataFrame (WGS84 → WebMercator) ---------------
 
-# Add noise in meters (converted to degrees)
-# Approx conversion: 1 degree lat ≈ 111_000 meters
-#noise_m_lat = np.random.uniform(-2, 2, size=len(df))  # ±2 meters
-#noise_m_lon = np.random.uniform(-2, 2, size=len(df))  # ±2 meters
-noise_m_lat = np.random.normal(0, 2, size=len(df))  # ±2 meters
-noise_m_lon = np.random.normal(0, 2, size=len(df))  # ±2 meters
-
-# Convert to degrees
-noise_deg_lat = noise_m_lat / 111_000
-noise_deg_lon = noise_m_lon / (111_000 * np.cos(np.radians(df["latitude"])))
-
-# Apply noise
-noisy_lat = df["latitude"] + noise_deg_lat
-noisy_lon = df["longitude"] + noise_deg_lon
-
-# Create noisy GeoDataFrame
-geometry = [Point(lon, lat) for lon, lat in zip(noisy_lon, noisy_lat)]
-#geometry = [Point(lon, lat) for lon, lat in zip(df["longitude"], df["latitude"])]
+# 1. Create a GeoDataFrame in lat/lon (EPSG:4326)
+geometry = [Point(lon, lat) for lon, lat in zip(df["longitude"], df["latitude"])]
 gdf = gpd.GeoDataFrame(df.copy(), geometry=geometry, crs="EPSG:4326")
 
 # 2. Reproject to Web Mercator (EPSG:3857) for easy basemap plotting
@@ -66,8 +51,8 @@ gdf = gdf.to_crs(epsg=3857)
 h_samp = 1 / 20 # Sample time (s) corresponding to 20 Hz
 gnss_freq = 10 #  GNSS measurement 10 times slower (10 Hz)
 Z = 2
-Qd = np.diag([1E7, 1E3]) # Process co-variance matrix: speed/course rate
-Rd = np.diag([1E-8, 1E-8]) # GNSS measurement co-variance matrix
+Qd = np.diag([1E7, 1E3])
+Rd = np.diag([1E-8, 1E-8])
 
 ekf = EKF.EKF5States(Qd, Rd, Z, h_samp, 'LL')
 
@@ -98,52 +83,46 @@ line_ekf_gdf = gpd.GeoDataFrame(geometry=[line_ekf], crs=gdfEKF.crs)
 #              blue connecting line)
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Compute bounding box + padding in WebMercator
-xmin, ymin, xmax, ymax = gdf.total_bounds
-padding = 20  # meters
-xmin -= padding; xmax += padding
-ymin -= padding; ymax += padding
+# Calculate center and rings (for high-precision zoom)
+
+# Median point in WGS84 and convert to Web Mercator
+median_lat = df["latitude"].median()
+median_lon = df["longitude"].median()
+center = gpd.GeoSeries([Point(median_lon, median_lat)], crs="EPSG:4326").to_crs(epsg=3857).iloc[0]
+
+# Concentric rings every 5 cm up to 1 meter
+rings = [center.buffer(i * 0.05) for i in range(1, 21)]
+rings_gdf = gpd.GeoDataFrame(geometry=rings, crs=gdf.crs)
+
+# Plot map with both GNSS and EKF tracks, including concentric rings
 
 fig, ax = plt.subplots(figsize=(20, 20))
-fig.suptitle("GNSS Track with Original (red stars) & EKF (blue triangles + line)", fontsize=16)
+fig.suptitle("GNSS vs EKF (Filtered) Track with High-Precision Rings", fontsize=16)
 fig.canvas.manager.set_window_title("Map - " + filename)
 
-# (1) Plot original GNSS points as red stars (marker='*', no line)
-gdf.plot(
-    ax=ax,
-    color='red',
-    marker='*',
-    markersize=30,
-    linestyle='None',
-    label='Original GNSS Fixes'
-)
+# Plot raw GNSS fixes (red stars)
+gdf.plot(ax=ax, color='red', marker='*', markersize=30, linestyle='None', label='GNSS Fixes')
 
-# (2) Plot EKF points as blue triangles (marker='^', no line)
-gdfEKF.plot(
-    ax=ax,
-    color='blue',
-    marker='^',
-    markersize=20,
-    linestyle='None',
-    label='EKF Positions'
-)
+# Plot EKF fixes (blue triangles)
+gdfEKF.plot(ax=ax, color='blue', marker='^', markersize=20, linestyle='None', label='EKF Positions')
 
-# (3) Plot EKF connecting line in solid blue
-line_ekf_gdf.plot(
-    ax=ax,
-    color='blue',
-    linewidth=2,
-    label='EKF Path'
-)
+# Plot EKF path (blue line)
+#line_ekf_gdf.plot(ax=ax, color='blue', linewidth=2, label='EKF Path')
 
-ax.set_xlim(xmin, xmax)
-ax.set_ylim(ymin, ymax)
+# Plot concentric rings (orange dashed lines)
+rings_gdf.plot(ax=ax, facecolor='none', edgecolor='orange', linestyle='--', linewidth=1, label='5 cm Rings')
 
-# Add a basemap underneath (Esri World Imagery)
+# Define tight extent with padding
+buffer = 50  # meters
+ax.set_xlim(center.x - buffer, center.x + buffer)
+ax.set_ylim(center.y - buffer, center.y + buffer)
+
+# Add basemap
 ctx.add_basemap(ax, source=ctx.providers.Esri.WorldImagery)
 
-ax.legend(fontsize=14)
+# Final touches
 ax.set_axis_off()
+ax.legend(fontsize=12)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

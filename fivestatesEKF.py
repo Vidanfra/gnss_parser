@@ -137,8 +137,8 @@ if __name__ == '__main__':
     # Example parameters
     h_samp = 1/50  # Sample time (s) corresponding to 50 Hz
     Z = 10 #  GNSS measurement 10 times slower (5 Hz)
-    Qd = np.diag([0.01, 0.01])  # Process co-variance matrix: speed/course rate
-    Rd = np.diag([5.0, 5.0])    # GNSS measurement co-variance matrix
+    Qd = np.diag([1E7, 1E3])  # Process co-variance matrix: speed/course rate
+    Rd = np.diag([1E-8, 1E-8])    # GNSS measurement co-variance matrix
     
 
     ekf = EKF5States(Qd, Rd, Z, h_samp, 'LL')
