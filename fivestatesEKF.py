@@ -14,8 +14,8 @@ class EKF5States:
         self.f = 1 / 298.257223563 # Flattening
         self.e = np.sqrt(2 * self.f - self.f**2) # Earth eccentricity
 
-        self.alpha_1 = 0.01 # Singer constant, speed
-        self.alpha_2 = 0.1  # Singer constant, course rate
+        self.alpha_1 = 0.01 # Singer constant, speed (CV Constant Velocity model)
+        self.alpha_2 = 0.1  # Singer constant, course rate (CA Constant Acceleration model)
 
         # Internal state
         self.x_prd = None
